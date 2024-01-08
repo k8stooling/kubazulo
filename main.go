@@ -10,6 +10,7 @@ func main() {
 	var rootCmd = &cobra.Command{Use: "kubazulo"}
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(cmd.GetToken())
+	rootCmd.AddCommand(cmd.Version())
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

@@ -5,7 +5,8 @@ import (
 	"os"
 )
 
-const msbaseURL = "https://login.microsoftonline.com/"
+const msBaseURL = "https://login.microsoftonline.com/"
+const version = "0.0.7-beta"
 
 type AuthorizationConfig struct {
 	Host         string
@@ -16,6 +17,7 @@ type AuthorizationConfig struct {
 	ClientID     string
 	OpenCMD      string
 	ClientSecret string
+	LoginMode    string
 }
 
 var DefaultConfig = AuthorizationConfig{
@@ -33,6 +35,7 @@ var (
 	CfgLoopbackport     string
 	CfgIntermediate     string
 	CfgApitokenendpoint string
+	CfgLoginMode        string
 )
 
 var (
@@ -43,8 +46,9 @@ var (
 )
 
 var (
-	AuthorizationURL string
-	TokenURL         string
+	AuthorizationURL       string
+	AuthorizationURLDevice string
+	TokenURL               string
 )
 
 type Session struct {
@@ -55,8 +59,9 @@ type Session struct {
 }
 
 func FillVariables() {
-	AuthorizationURL = msbaseURL + CfgTenantId + "/oauth2/v2.0/authorize"
-	TokenURL = msbaseURL + CfgTenantId + "/oauth2/v2.0/token"
+	AuthorizationURL = msBaseURL + CfgTenantId + "/oauth2/v2.0/authorize"
+	AuthorizationURLDevice = msBaseURL + CfgTenantId + "/oauth2/v2.0/devicecode"
+	TokenURL = msBaseURL + CfgTenantId + "/oauth2/v2.0/token"
 }
 
 func init() {
@@ -73,3 +78,25 @@ func init() {
 	ErrorLogger = log.New(file, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 	DebugLogger = log.New(file, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
 }
+
+const SuccessMsg = `
+<!DOCTYPE html> <html lang="en"> 
+<head>
+<style>
+body {
+  background-image: url('https://wallpaperaccess.com/full/4834955.jpg');
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: 100% 100%;
+}
+</style>
+<meta charset="UTF-8">
+    <title>Azure Platform Authentication Service</title>
+</head>
+<body>
+	<p style="background-image: url('https://wallpaperaccess.com/full/4834955.jpg');"></p>
+    <h2><p style="color: white">You have been successfully authenticated and now ready to communicate with the API-Server</br></br>
+	You can close the Browser window now and get back to the command-line!</p></h2>
+</body>
+</html>
+`

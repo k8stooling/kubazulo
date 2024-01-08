@@ -33,11 +33,11 @@ func WriteSession(Expiry int64, TokenStart int64, _AccessToken string, _RefreshT
 		RefreshToken:        _RefreshToken,
 	}
 
-	a_json, err := json.Marshal(data)
+	aJson, err := json.Marshal(data)
 	if err != nil {
 		panic(err)
 	}
-	f.Write(a_json)
+	f.Write(aJson)
 }
 
 func ReadSession() Session {

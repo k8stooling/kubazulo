@@ -52,3 +52,7 @@ func CheckFlagExistence(flags *pflag.FlagSet, name string) bool {
 		return false
 	}
 }
+
+func PrintAppVersion() {
+	fmt.Println("Kubazulo Version:", version)
+}

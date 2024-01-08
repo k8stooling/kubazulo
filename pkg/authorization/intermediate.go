@@ -17,9 +17,10 @@ type JsonData struct {
 	RedirectURI  string `json:"redirect_uri"`
 	RefreshToken string `json:"refresh_token"`
 	GrantType    string `json:"grant_type"`
+	DeviceCode   string `json:"device_code"`
 }
 
-func GetTokenData(data JsonData) (t Tokens, err error) {
+func GetTokenDataApi(data JsonData) (t Tokens, err error) {
 	marshalled, err := json.Marshal(data)
 	if err != nil {
 		log.Fatalf("impossible to marshall teacher: %s", err)
