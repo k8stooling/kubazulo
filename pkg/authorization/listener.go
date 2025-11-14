@@ -9,7 +9,7 @@ import (
 )
 
 func startLocalListener(c utils.AuthorizationConfig, token *AuthorizationCode) *http.Server {
-	srv := &http.Server{Addr: fmt.Sprintf(":%s", c.RedirectPort)}
+	srv := &http.Server{Addr: fmt.Sprintf("localhost:%s", c.RedirectPort)}
 
 	http.HandleFunc(c.RedirectPath, func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()

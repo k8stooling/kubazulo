@@ -15,7 +15,7 @@ const (
 
 func CreateDirectory(path string) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		err := os.MkdirAll(path, os.ModePerm)
+		err := os.MkdirAll(path, 0700)
 		if err != nil {
 			log.Println(err, " - Please verify if the folder name already exists or is being used by a file!")
 		}
@@ -24,7 +24,10 @@ func CreateDirectory(path string) {
 
 func WriteSession(_LoginMode string, _Expiry int64, _TokenStart int64, _AccessToken string, _RefreshToken string) {
 	CreateDirectory(GetHomeDir() + cachepath)
-	f, err := os.Create(GetHomeDir() + cachepath + sessionfile)
+
+	//f, err := os.Create(GetHomeDir() + cachepath + sessionfile)
+	f, err := os.OpenFile(GetHomeDir()+cachepath+sessionfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+
 	if err != nil {
 		panic(err)
 	}
