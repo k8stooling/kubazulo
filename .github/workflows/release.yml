@@ -28,7 +28,7 @@ jobs:
             goarch: arm
             goarm: 7
 
-          # macOS (cross-compiled from Linux)
+          # macOS cross-compiled
           - os: ubuntu-latest
             goos: darwin
             goarch: amd64
@@ -37,7 +37,7 @@ jobs:
             goos: darwin
             goarch: arm64
 
-          # Windows (native runner)
+          # Windows
           - os: windows-latest
             goos: windows
             goarch: amd64
@@ -49,10 +49,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.26.x'
 
       - name: Run tests
         run: go test -v ./...
+
+      # ✅ Install zip on Windows (Option 2 fix)
+      - name: Install zip (Windows)
+        if: runner.os == 'Windows'
+        run: choco install zip -y
 
       - name: Build binary
         shell: bash
@@ -65,7 +70,7 @@ jobs:
 
           VERSION=${GITHUB_REF_NAME}
 
-          # Handle ARM variant naming
+          # ARM naming
           if [ ! -z "${{ matrix.goarm }}" ]; then
             export GOARM=${{ matrix.goarm }}
             ARCH_NAME="arm${GOARM}"
@@ -90,7 +95,7 @@ jobs:
 
           for file in *; do
             if [[ "$file" == *.exe ]]; then
-              # Create zip but KEEP the exe
+              # zip + keep exe
               zip "$file.zip" "$file"
             else
               tar -czf "$file.tar.gz" "$file"
