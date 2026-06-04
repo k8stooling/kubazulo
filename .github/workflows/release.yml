@@ -6,167 +6,101 @@ on:
 name: Create Release
 
 jobs:
-  once:
-    name: Create single release for all builds
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Create a release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
   build:
-    name: Create Release
-    needs: once
+    name: Build and Release
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, macos-13, ubuntu-latest, windows-latest]
-        arch: [amd64, arm64, arm64-android, arm7]
+        include:
+          # Linux builds
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm
+            goarm: 7
+
+          # macOS (cross-compiled from Linux)
+          - os: ubuntu-latest
+            goos: darwin
+            goarch: amd64
+
+          - os: ubuntu-latest
+            goos: darwin
+            goarch: arm64
+
+          # Windows (native runner)
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
-      - name: Build and package for Linux and Android
-        if: matrix.os == 'ubuntu-latest'
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build binary
+        shell: bash
         run: |
-          if [[ "${{ matrix.arch }}" == "amd64" ]]; then
-            export GOARCH=amd64
-            export GOOS=linux
-            export CGO_ENABLED=0
-            go build -v -o kubazulo
-            tar -czvf kubazulo-linux-amd64-${{ github.ref_name }}.tar.gz kubazulo
-          elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
-            export GOARCH=arm64
-            export GOOS=linux
-            export CGO_ENABLED=0
-            go build -v -o kubazulo
-            tar -czvf kubazulo-linux-arm64-${{ github.ref_name }}.tar.gz kubazulo
-          elif [[ "${{ matrix.arch }}" == "arm7" ]]; then
-            export GOARCH=arm
-            export GOOS=linux
-            export GOARM=7
-            export CGO_ENABLED=0
-            go build -v -o kubazulo
-            tar -czvf kubazulo-linux-arm7-${{ github.ref_name }}.tar.gz kubazulo
+          mkdir -p dist
+
+          export GOOS=${{ matrix.goos }}
+          export GOARCH=${{ matrix.goarch }}
+          export CGO_ENABLED=0
+
+          VERSION=${GITHUB_REF_NAME}
+
+          # Handle ARM variant naming
+          if [ ! -z "${{ matrix.goarm }}" ]; then
+            export GOARM=${{ matrix.goarm }}
+            ARCH_NAME="arm${GOARM}"
+          else
+            ARCH_NAME="${GOARCH}"
           fi
 
-      - if: matrix.os == 'macos-latest' && matrix.arch == 'arm64' || matrix.os == 'macos-13' && matrix.arch == 'amd64'
-        name: Build Linux and MacOS arm64/amd64
-        run: CGO_ENABLED=0 go build -v -o kubazulo
-      
-      - name: Build and package for Windows
-        if: matrix.os == 'windows-latest' && matrix.arch == 'amd64'
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then
+            EXT=".exe"
+          fi
+
+          OUTPUT="kubazulo-${GOOS}-${ARCH_NAME}-${VERSION}${EXT}"
+
+          echo "Building $OUTPUT"
+          go build -v -o "dist/$OUTPUT"
+
+      - name: Package artifacts
+        shell: bash
         run: |
-          cmd /C "set CGO_ENABLED=0 && go build -v -o kubazulo"
-          powershell Compress-Archive -Path kubazulo -DestinationPath kubazulo-windows-amd64-${{ github.ref_name }}.zip
+          cd dist
 
-      - name: Test
-        run: go test -v ./...
-      
-      - if: matrix.os == 'macos-13' && matrix.arch == 'amd64'
-        name: create-archive for macos amd64
-        run: tar -czf kubazulo-macos-amd64-${{ github.ref_name }}.tar.gz kubazulo
-      
-      - if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
-        name: create-archive for arm64
-        run: tar -czf kubazulo-macos-arm64-${{ github.ref_name }}.tar.gz kubazulo
-      
-      - if: matrix.arch == 'amd64' && matrix.os == 'ubuntu-latest'
-        name: Upload Release Asset Linux amd64
-        id: upload-release-asset-linux-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: ./kubazulo-linux-amd64-${{ github.ref_name }}.tar.gz
-          asset_name: kubazulo-linux-amd64-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/x-tgz
+          for file in *; do
+            if [[ "$file" == *.exe ]]; then
+              # Create zip but KEEP the exe
+              zip "$file.zip" "$file"
+            else
+              tar -czf "$file.tar.gz" "$file"
+              rm "$file"
+            fi
+          done
 
-      - if: matrix.arch == 'arm64' && matrix.os == 'ubuntu-latest'
-        name: Upload Release Asset Linux arm64
-        id: upload-release-asset-linux-arm64
-        uses: actions/upload-release-asset@v1
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: ./kubazulo-linux-arm64-${{ github.ref_name }}.tar.gz
-          asset_name: kubazulo-linux-arm64-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/x-tgz
-
-      - if: matrix.arch == 'arm7' && matrix.os == 'ubuntu-latest'
-        name: Upload Release Asset Linux arm7
-        id: upload-release-asset-linux-arm7
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: ./kubazulo-linux-arm7-${{ github.ref_name }}.tar.gz
-          asset_name: kubazulo-linux-arm7-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/x-tgz
-
-      - if: matrix.os == 'macos-13' && matrix.arch == 'amd64'
-        name: Upload Release Asset MacOS amd64
-        id: upload-release-asset-macos-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: ./kubazulo-macos-amd64-${{ github.ref_name }}.tar.gz
-          asset_name: kubazulo-macos-amd64-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/x-tgz   
-      
-      - if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
-        name: Upload Release Asset MacOS arm64
-        id: upload-release-asset-macos-arm64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: ./kubazulo-macos-arm64-${{ github.ref_name }}.tar.gz
-          asset_name: kubazulo-macos-arm64-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/x-tgz  
-      
-      - if: matrix.os == 'windows-latest' && matrix.arch == 'amd64'
-        name: Upload Release Asset Windows
-        id: upload-release-asset-windows
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: ./kubazulo-windows-amd64-${{ github.ref_name }}.zip
-          asset_name: kubazulo-windows-amd64-${{ github.ref_name }}.zip
-          asset_content_type: application/zip
-      
-      - if: matrix.os == 'windows-latest' && matrix.arch == 'amd64'
-        name: Upload Release Asset only executable for winget
-        id: upload-release-asset_windows_exe-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.once.outputs.upload_url }}
-          asset_path: kubazulo
-          asset_name: kubazulo.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
