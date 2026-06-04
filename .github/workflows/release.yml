@@ -28,7 +28,7 @@ jobs:
             goarch: arm
             goarm: 7
 
-          # macOS cross-compiled
+          # macOS (cross-compiled)
           - os: ubuntu-latest
             goos: darwin
             goarch: amd64
@@ -54,7 +54,7 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-      # ✅ Install zip on Windows (Option 2 fix)
+      # Install zip for Windows
       - name: Install zip (Windows)
         if: runner.os == 'Windows'
         run: choco install zip -y
@@ -70,7 +70,7 @@ jobs:
 
           VERSION=${GITHUB_REF_NAME}
 
-          # ARM naming
+          # Handle architecture naming
           if [ ! -z "${{ matrix.goarm }}" ]; then
             export GOARM=${{ matrix.goarm }}
             ARCH_NAME="arm${GOARM}"
@@ -78,12 +78,12 @@ jobs:
             ARCH_NAME="${GOARCH}"
           fi
 
-          EXT=""
+          # Windows gets fixed filename kubazulo.exe
           if [ "$GOOS" = "windows" ]; then
-            EXT=".exe"
+            OUTPUT="kubazulo.exe"
+          else
+            OUTPUT="kubazulo-${GOOS}-${ARCH_NAME}-${VERSION}"
           fi
-
-          OUTPUT="kubazulo-${GOOS}-${ARCH_NAME}-${VERSION}${EXT}"
 
           echo "Building $OUTPUT"
           go build -v -o "dist/$OUTPUT"
@@ -95,7 +95,7 @@ jobs:
 
           for file in *; do
             if [[ "$file" == *.exe ]]; then
-              # zip + keep exe
+              # zip but KEEP kubazulo.exe
               zip "$file.zip" "$file"
             else
               tar -czf "$file.tar.gz" "$file"
