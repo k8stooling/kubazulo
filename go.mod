@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 )
 
