@@ -4,14 +4,37 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 const (
-	sessionfile = "azuredata.json"
+	legacySessionFile = "azuredata.json"
 	cachepath   = "/.kube/cache/kubazulo/"
 )
+
+func GetSessionFileName() string {
+	if CfgApitokenendpoint == "" || CfgClientId == "" {
+		return legacySessionFile
+	}
+
+	endpoint := strings.TrimPrefix(CfgApitokenendpoint, "https://")
+	endpoint = strings.TrimPrefix(endpoint, "http://")
+	endpoint = strings.ReplaceAll(endpoint, ".", "-")
+	endpoint = strings.ReplaceAll(endpoint, "/", "-")
+	endpoint = strings.Trim(endpoint, "-")
+	if endpoint == "" {
+		return legacySessionFile
+	}
+
+	return endpoint + "-" + CfgClientId + ".json"
+}
+
+func GetSessionFilePath() string {
+	return filepath.Join(GetHomeDir(), cachepath, GetSessionFileName())
+}
 
 func CreateDirectory(path string) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
@@ -25,8 +48,7 @@ func CreateDirectory(path string) {
 func WriteSession(_LoginMode string, _Expiry int64, _TokenStart int64, _AccessToken string, _RefreshToken string) {
 	CreateDirectory(GetHomeDir() + cachepath)
 
-	//f, err := os.Create(GetHomeDir() + cachepath + sessionfile)
-	f, err := os.OpenFile(GetHomeDir()+cachepath+sessionfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(GetSessionFilePath(), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 
 	if err != nil {
 		panic(err)
@@ -50,7 +72,7 @@ func WriteSession(_LoginMode string, _Expiry int64, _TokenStart int64, _AccessTo
 
 func ReadSession() Session {
 	data := Session{}
-	fileContent, err := os.ReadFile(GetHomeDir() + cachepath + sessionfile)
+	fileContent, err := os.ReadFile(GetSessionFilePath())
 	if err != nil {
 		log.Fatal(err, " - Please check if folder with name \"kubazulo\" name has been created properly and the name is not already in use!")
 	}
